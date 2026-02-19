@@ -2,13 +2,15 @@ import { normalizeMessageChannel } from "../../utils/message-channel.js";
 import type { SessionConfig, SessionResetConfig } from "../types.base.js";
 import { DEFAULT_IDLE_MINUTES } from "./types.js";
 
-export type SessionResetMode = "daily" | "idle";
+export type SessionResetMode = "daily" | "idle" | "on-demand";
 export type SessionResetType = "direct" | "group" | "thread";
 
 export type SessionResetPolicy = {
   mode: SessionResetMode;
   atHour: number;
   idleMinutes?: number;
+  /** Safety-net idle limit for on-demand mode. */
+  maxIdleMinutes?: number;
 };
 
 export type SessionFreshness = {
@@ -116,7 +118,19 @@ export function resolveSessionResetPolicy(params: {
     idleMinutes = DEFAULT_IDLE_MINUTES;
   }
 
-  return { mode, atHour, idleMinutes };
+  // On-demand mode: resolve maxIdleMinutes safety net
+  let maxIdleMinutes: number | undefined;
+  if (mode === "on-demand") {
+    const maxIdleRaw = typeReset?.maxIdleMinutes ?? baseReset?.maxIdleMinutes;
+    if (maxIdleRaw != null) {
+      const normalized = Math.floor(maxIdleRaw);
+      if (Number.isFinite(normalized) && normalized > 0) {
+        maxIdleMinutes = normalized;
+      }
+    }
+  }
+
+  return { mode, atHour, idleMinutes, maxIdleMinutes };
 }
 
 export function resolveChannelResetConfig(params: {
@@ -141,6 +155,19 @@ export function evaluateSessionFreshness(params: {
   now: number;
   policy: SessionResetPolicy;
 }): SessionFreshness {
+  // On-demand mode: session is always fresh unless maxIdleMinutes safety net is exceeded
+  if (params.policy.mode === "on-demand") {
+    const maxIdleExpiresAt =
+      params.policy.maxIdleMinutes != null
+        ? params.updatedAt + params.policy.maxIdleMinutes * 60_000
+        : undefined;
+    const staleMaxIdle = maxIdleExpiresAt != null && params.now > maxIdleExpiresAt;
+    return {
+      fresh: !staleMaxIdle,
+      idleExpiresAt: maxIdleExpiresAt,
+    };
+  }
+
   const dailyResetAt =
     params.policy.mode === "daily"
       ? resolveDailyResetAtMs(params.now, params.policy.atHour)

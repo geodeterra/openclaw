@@ -35,6 +35,7 @@ const GATEWAY_ACTIONS = [
   "config.apply",
   "config.patch",
   "update.run",
+  "session.reset",
 ] as const;
 
 // NOTE: Using a flattened object schema instead of Type.Union([Type.Object(...), ...])
@@ -71,7 +72,7 @@ export function createGatewayTool(opts?: {
     name: "gateway",
     ownerOnly: true,
     description:
-      "Restart, apply config, or update the gateway in-place (SIGUSR1). Use config.patch for safe partial config updates (merges with existing). Use config.apply only when replacing entire config. Both trigger restart after writing. Always pass a human-readable completion message via the `note` parameter so the system can deliver it to the user after restart.",
+      "Restart, apply config, update the gateway in-place (SIGUSR1), or reset a session. Use config.patch for safe partial config updates (merges with existing). Use config.apply only when replacing entire config. Both trigger restart after writing. Always pass a human-readable completion message via the `note` parameter so the system can deliver it to the user after restart. Use session.reset to programmatically reset the current session (equivalent to /reset command).",
     parameters: GatewayToolSchema,
     execute: async (_toolCallId, args) => {
       const params = args as Record<string, unknown>;
@@ -209,6 +210,25 @@ export function createGatewayTool(opts?: {
           note,
           restartDelayMs,
           timeoutMs: updateTimeoutMs,
+        });
+        return jsonResult({ ok: true, result });
+      }
+
+      if (action === "session.reset") {
+        const sessionKey =
+          typeof params.sessionKey === "string" && params.sessionKey.trim()
+            ? params.sessionKey.trim()
+            : opts?.agentSessionKey?.trim() || undefined;
+        if (!sessionKey) {
+          throw new Error("session.reset requires a sessionKey");
+        }
+        const reason =
+          typeof params.reason === "string" && params.reason.trim()
+            ? params.reason.trim()
+            : "reset";
+        const result = await callGatewayTool("sessions.reset", gatewayOpts, {
+          key: sessionKey,
+          reason,
         });
         return jsonResult({ ok: true, result });
       }
