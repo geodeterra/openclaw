@@ -194,6 +194,8 @@ export type ExecToolConfig = {
   backgroundMs?: number;
   /** Default timeout (seconds) before auto-killing exec commands. */
   timeoutSec?: number;
+  /** Hard cap on per-call exec timeout (seconds). Only applies to non-subagent sessions. */
+  maxTimeoutSec?: number;
   /** Emit a running notice (ms) when approval-backed exec runs long (default: 10000, 0 = off). */
   approvalRunningNoticeMs?: number;
   /** How long to keep finished sessions in memory (ms). */

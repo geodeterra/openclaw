@@ -1,6 +1,11 @@
+import type { AgentTool, AgentToolResult } from "@mariozechner/pi-agent-core";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { AgentTool, AgentToolResult } from "@mariozechner/pi-agent-core";
+import type {
+  ExecElevatedDefaults,
+  ExecToolDefaults,
+  ExecToolDetails,
+} from "./bash-tools.exec-types.js";
 import { type ExecHost, maxAsk, minSecurity, resolveSafeBins } from "../infra/exec-approvals.js";
 import { getTrustedSafeBinDirs } from "../infra/exec-safe-bin-trust.js";
 import {
@@ -28,11 +33,6 @@ import {
   execSchema,
   validateHostEnv,
 } from "./bash-tools.exec-runtime.js";
-import type {
-  ExecElevatedDefaults,
-  ExecToolDefaults,
-  ExecToolDetails,
-} from "./bash-tools.exec-types.js";
 import {
   buildSandboxEnv,
   clampWithDefault,
@@ -162,6 +162,10 @@ export function createExecTool(
     typeof defaults?.timeoutSec === "number" && defaults.timeoutSec > 0
       ? defaults.timeoutSec
       : 1800;
+  const maxTimeoutSec =
+    typeof defaults?.maxTimeoutSec === "number" && defaults.maxTimeoutSec > 0
+      ? defaults.maxTimeoutSec
+      : null;
   const defaultPathPrepend = normalizePathPrepend(defaults?.pathPrepend);
   const safeBins = resolveSafeBins(defaults?.safeBins);
   const trustedSafeBinDirs = getTrustedSafeBinDirs();
@@ -407,8 +411,9 @@ export function createExecTool(
         execCommandOverride = gatewayResult.execCommandOverride;
       }
 
+      const rawTimeout = typeof params.timeout === "number" ? params.timeout : defaultTimeoutSec;
       const effectiveTimeout =
-        typeof params.timeout === "number" ? params.timeout : defaultTimeoutSec;
+        maxTimeoutSec !== null ? Math.min(rawTimeout, maxTimeoutSec) : rawTimeout;
       const getWarningText = () => (warnings.length ? `${warnings.join("\n")}\n\n` : "");
       const usePty = params.pty === true && !sandbox;
 
