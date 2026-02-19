@@ -68,13 +68,15 @@ export type SessionSendPolicyConfig = {
   rules?: SessionSendPolicyRule[];
 };
 
-export type SessionResetMode = "daily" | "idle";
+export type SessionResetMode = "daily" | "idle" | "on-demand";
 export type SessionResetConfig = {
   mode?: SessionResetMode;
   /** Local hour (0-23) for the daily reset boundary. */
   atHour?: number;
   /** Sliding idle window (minutes). When set with daily mode, whichever expires first wins. */
   idleMinutes?: number;
+  /** Maximum idle minutes before auto-reset (on-demand mode only). Safety net to prevent unbounded sessions. */
+  maxIdleMinutes?: number;
 };
 export type SessionResetByTypeConfig = {
   direct?: SessionResetConfig;

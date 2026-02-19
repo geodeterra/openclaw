@@ -13,9 +13,10 @@ import {
 
 const SessionResetConfigSchema = z
   .object({
-    mode: z.union([z.literal("daily"), z.literal("idle")]).optional(),
+    mode: z.union([z.literal("daily"), z.literal("idle"), z.literal("on-demand")]).optional(),
     atHour: z.number().int().min(0).max(23).optional(),
     idleMinutes: z.number().int().positive().optional(),
+    maxIdleMinutes: z.number().int().positive().optional(),
   })
   .strict();
 
